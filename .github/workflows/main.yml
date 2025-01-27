@@ -43,7 +43,7 @@ jobs:
       - name: Run Terraform Plan
         run: |
           touch $GITHUB_WORKSPACE/plan_output.txt
-          for dir in $(echo "${{ env.directories }}" | jq -r '.[]'); do
+          for dir in $(echo ${{ env.directories }} | jq -r '.[]'); do
             echo "Running Terraform Plan in $dir"
             cd "$dir"
             terraform init -input=false
