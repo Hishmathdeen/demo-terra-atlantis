@@ -1,0 +1,85 @@
+name: Terraform Plan for Modified Directories
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+
+jobs:
+  plan-IaC:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # Step 2: Identify Modified Directories using Python
+      - name: Identify Modified Directories
+        run: python .github/workflows/identify_modified_dirs.py
+
+      # Step 3: Set up Terraform CLI
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      # Step 4: Run Terraform Plan for each modified directory
+      - name: Run Terraform Plan
+        run: |
+          modified_dirs=$(cat $GITHUB_WORKSPACE/modified_dirs.json | jq -r '.[]')
+          for dir in $modified_dirs; do
+            echo "Running Terraform Plan in $dir"
+            cd "$dir"
+            - name: Terraform Init
+              id: init
+              run: terraform init -input=false
+
+            - name: Terraform Plan
+              id: plan
+              run: terraform plan -no-color
+              continue-on-error: true
+              
+            cd - > /dev/null
+          done
+
+      # Step 5: Post Terraform Plan Output as Separate Comments
+            # Step 5: Post Terraform Plan Outputs as Separate Comments
+      # Step 5: Post Terraform Plan Outputs as Separate Comments
+      - name: Post Terraform Plan Outputs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const modifiedDirs = fs.readFileSync(`${process.env.GITHUB_WORKSPACE}/modified_dirs.json`, 'utf8');
+            const dirs = JSON.parse(modifiedDirs);
+      
+            for (const dir of dirs) {
+              const planPath = `${process.env.GITHUB_WORKSPACE}/${dir.replace(/\//g, '-')}_plan.txt`;
+              const planOutput = fs.readFileSync(planPath, 'utf8');
+              
+              const formattedPlan = planOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      
+              const comment = `
+                ## Terraform Plan Output 📖 for \`${dir}\`
+                <details><summary>Show Plan</summary>
+                
+                \`\`\`
+                ${formattedPlan}
+                \`\`\`
+                
+                </details>
+              `;
+      
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment,
+              });
+            }
