@@ -1,104 +1,61 @@
-name: 'Atlantis'
+name: Terraform Plan for Modified Directories
 
 on:
-  # Issue comments target default branch so workflow definition in main (rather than PR) is used
-  issue_comment:
-    types:
-      - created
   pull_request:
+    branches:
+      - main
     types:
-      - closed
+      - opened
       - reopened
-
-permissions:
-  checks: write
-  contents: write
-  issues: write
-  pull-requests: write
-  statuses: write
-#  id-token: write # Only needed for AWS creds to interact with GitHub's OIDC Token endpoint
+      - synchronize
 
 jobs:
-  atlantis:
-    name: Atlantis
+  terraform-plan:
     runs-on: ubuntu-latest
-    # Only for testing purposes, this requires an external Redis instance to handle locks
-    services:
-      redis:
-        image: redis
-    container:
-      # Debian needed for GHA to use cache (uses /bin/tar --posix)
-      image: ghcr.io/runatlantis/atlantis:v0.23.2-debian
-      env:
-        # Volume mounted outside of /home/atlantis needed for cache action to have privileges to it
-        ATLANTIS_DATA_DIR: /atlantis-data
-        ATLANTIS_GH_USER: ${{ github.actor }}
-        ATLANTIS_GH_TOKEN: ${{ secrets.GT_TOKEN }}
-        ATLANTIS_LOCKING_DB_TYPE: redis
-        ATLANTIS_REDIS_HOST: redis
-        ATLANTIS_REPO_ALLOWLIST: github.com/${{ github.repository }}
-        ATLANTIS_DISABLE_AUTOPLAN: false
-      options: --user root
-      volumes:
-        - ${{ github.workspace }}/atlantis-data:/atlantis-data
+
     steps:
-#      # Use GitHub's OIDC provider with a configured AWS IAM Identity Provider endpoint to assume role
-#      - name: Configure AWS Credentials
-#        uses: aws-actions/configure-aws-credentials@v2
-#        with:
-#          role-to-assume: arn:aws:iam::123456789100:role/my-terraform-state-role
-#          aws-region: eu-west-1
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-#       - name: Restore Atlantis data
-#         id: restore-atlantis-data
-#         uses: actions/cache/restore@v3
-#         if: github.event_name == 'issue_comment'
-#         with:
-#           path: /atlantis-data
-#           key: atlantis-data-${{ github.event.issue.number }}
-          
-      - name: Cache Atlantis data
-        id: cache-atlantis-data
-        uses: actions/cache@v3
-        if: github.event_name == 'issue_comment'
-        with:
-          path: /atlantis-data
-          key: atlantis-data-${{ github.event.issue.number }}
-
-      - name: Run Atlantis
-        timeout-minutes: 1
+      # Step 2: Identify modified directories
+      - name: Identify modified directories
+        id: modified_dirs
         run: |
-          # Start server in background
-          atlantis server &
-          atlantis_pid=$!
-          
-          # Wait for Atlantis to start
-          until curl --output /dev/null --silent --fail http://localhost:4141/healthz; do
-            sleep 5
-          done
-          
-          # Relay event
-          curl --silent --request POST \
-            --header 'Content-Type: application/json' \
-            --header 'X-GitHub-Event: ${{ github.event_name }}' \
-            --header 'X-GitHub-Delivery: ${{ github.run_id }}' \
-            --data '${{ toJson(github.event) }}' \
-            http://localhost:4141/events
-          
-          # Wait for Atlantis to run
-          sleep 5
-          until curl --silent http://localhost:4141/status | grep '"in_progress_operations": 0'; do
-            sleep 5
-          done
-          
-          # Wait for Atlantis to exit gracefully (GitHub Actions sends SIGKILL instead of SIGTERM at the end)
-          kill $atlantis_pid
-          wait $atlantis_pid
+          # List directories with changes in the PR
+          git diff --name-only origin/main | awk -F'/' '{
+            if ($1 == "workspaces") print $1"/"$2"/"$3"/"$4
+          }' | sort -u > modified_dirs.txt
+          echo "Modified directories:"
+          cat modified_dirs.txt
+          # Save modified directories as a JSON array for use in the workflow
+          echo "directories=$(cat modified_dirs.txt | jq -R -s -c 'split("\n")[:-1]')" >> $GITHUB_ENV
 
-#       - name: Save Atlantis data
-#         id: save-atlantis-data
-#         uses: actions/cache/save@v3
-#         if: github.event_name == 'issue_comment'
-#         with:
-#           path: /atlantis-data
-#           key: atlantis-data-${{ github.event.issue.number }}
+      # Step 3: Terraform Plan for each modified directory
+      - name: Run Terraform Plan
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Loop through directories and run plan
+        run: |
+          for dir in $(echo ${{ env.directories }} | jq -r '.[]'); do
+            echo "Running Terraform Plan in $dir"
+            cd "$dir"
+            terraform init
+            terraform plan -out=tfplan
+            echo "Plan for $dir:" >> $GITHUB_WORKSPACE/plan_output.txt
+            terraform show tfplan >> $GITHUB_WORKSPACE/plan_output.txt
+            cd -
+          done
+
+      # Step 4: Comment on the PR
+      - name: Post Plans to PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          repo-token: ${{ secrets.GT_TOKEN }}
+          message: |
+            **Terraform Plan Results**
+            ```plaintext
+            $(cat $GITHUB_WORKSPACE/plan_output.txt)
+            ```
