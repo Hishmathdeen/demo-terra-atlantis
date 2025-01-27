@@ -65,4 +65,4 @@ jobs:
         uses: borchero/terraform-plan-comment@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          planfile: ${process.env.GITHUB_WORKSPACE}/plan_output.txt
+          planfile: plan_output.txt
