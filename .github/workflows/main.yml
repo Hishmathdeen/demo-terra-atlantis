@@ -44,7 +44,7 @@ jobs:
         run: |
           touch $GITHUB_WORKSPACE/plan_output.txt
           # Use a for loop to process each directory, iterate over the items in the JSON array
-          for dir in $(echo ${{ env.directories }} | jq -r '.[]'); do
+          for dir in $(echo "${{ env.directories }}" | jq -r '.[]'); do
             echo "Running Terraform Plan in $dir"
             cd "$dir"
             terraform init -input=false
