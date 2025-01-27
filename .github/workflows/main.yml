@@ -1,4 +1,4 @@
-name: Terraform Plan with Python
+name: Terraform Plan for Modified Directories
 
 on:
   pull_request:
@@ -17,28 +17,18 @@ jobs:
       # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
+
+      # Step 2: Set up Terraform CLI
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
         with:
-          fetch-depth: 0
+          terraform_version: 1.5.7 # Replace with your required version
 
-      # Step 2: Fetch the 'main' branch
-      - name: Fetch main branch
-        run: git fetch origin main
-
-      # Step 3: Setup Python
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-
-      # Step 4: Install dependencies (if needed)
-      - name: Install Python dependencies
-        run: pip install requests
-
-      # Step 5: Run Python script to identify modified directories
+      # Step 3: Identify Modified Directories using Python
       - name: Identify Modified Directories
         run: python .github/workflows/identify_modified_dirs.py
 
-      # Step 6: Read modified directories and run Terraform Plan
+      # Step 4: Run Terraform Plan for each modified directory
       - name: Run Terraform Plan
         run: |
           touch $GITHUB_WORKSPACE/plan_output.txt
@@ -53,11 +43,11 @@ jobs:
             cd - > /dev/null
           done
 
-      # Step 7: Comment on the PR
-      - name: Post Plans to PR
+      # Step 5: Post Plan Output as PR Comment
+      - name: Comment on the PR
         uses: mshick/add-pr-comment@v2
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GT_TOKEN }}
           message: |
             **Terraform Plan Results**
             ```plaintext
