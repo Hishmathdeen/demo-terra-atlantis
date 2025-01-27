@@ -17,6 +17,8 @@ jobs:
       # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       # Step 3: Identify Modified Directories using Python
       - name: Identify Modified Directories
