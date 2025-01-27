@@ -59,3 +59,10 @@ jobs:
               repo: context.repo.repo,
               body: `### Terraform Plan Output 📖\n\n<details><summary>Show Plan</summary>\n\n\`\`\`plaintext\n${planOutput}\n\`\`\`\n</details>`
             });
+
+
+      - name: Post PR comment
+        uses: borchero/terraform-plan-comment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          planfile: ${process.env.GITHUB_WORKSPACE}/plan_output.txt
