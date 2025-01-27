@@ -22,9 +22,9 @@ jobs:
       image: ghcr.io/runatlantis/atlantis:v0.23.2-debian
       env:
         ATLANTIS_GH_USER: ${{ github.actor }}
-        ATLANTIS_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        ATLANTIS_GH_TOKEN: ${{ secrets.GT_TOKEN }}
         ATLANTIS_REPO_ALLOWLIST: github.com/${{ github.repository }}
-        ATLANTIS_DISABLE_AUTOPLAN: true
+        ATLANTIS_DISABLE_AUTOPLAN: false
       options: --user root
     steps:
       - name: Checkout code
