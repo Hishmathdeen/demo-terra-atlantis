@@ -57,7 +57,7 @@ jobs:
       - name: Post Plans to PR
         uses: mshick/add-pr-comment@v2
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ secrets.GT_TOKEN }}
           message: |
             **Terraform Plan Results**
             ```plaintext
