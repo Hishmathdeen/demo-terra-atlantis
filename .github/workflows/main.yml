@@ -42,6 +42,7 @@ jobs:
           done
 
       # Step 5: Post Terraform Plan Output as Separate Comments
+            # Step 5: Post Terraform Plan Outputs as Separate Comments
       - name: Post Terraform Plan Outputs
         uses: actions/github-script@v7
         with:
@@ -55,12 +56,14 @@ jobs:
               const planPath = `${process.env.GITHUB_WORKSPACE}/${dir.replace(/\//g, '-')}_plan.txt`;
               const planOutput = fs.readFileSync(planPath, 'utf8');
               
+              const formattedPlan = planOutput.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
               const comment = `
                 ## Terraform Plan Output for \`${dir}\`
                 <details><summary>Show Plan</summary>
                 
                 \`\`\`
-                ${planOutput}
+                ${formattedPlan}
                 \`\`\`
                 
                 </details>
