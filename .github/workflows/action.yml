@@ -39,9 +39,9 @@ jobs:
             echo "Running Terraform Plan in $dir"
             cd "$dir"
             terraform init -input=false
-            terraform plan -input=false -out=tfplan
-            echo "Plan for $dir:" >> $GITHUB_WORKSPACE/plan_output.txt
-            terraform show -no-color tfplan >> $GITHUB_WORKSPACE/plan_output.txt
+            terraform plan -input=false -out tf.plan
+            echo "Plan for $dir:" >> $GITHUB_WORKSPACE/tf.plan
+            terraform show -no-color tf.plan >> $GITHUB_WORKSPACE/plan_output.txt
             cd - > /dev/null
           done
 
