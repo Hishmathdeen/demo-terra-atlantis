@@ -3,55 +3,62 @@ name: Terraform Plan for Modified Config Directories
 on:
   pull_request:
     branches:
-    - main
+      - main
     types:
-    - opened
-    - reopened
-    - synchronize
+      - opened
+      - reopened
+      - synchronize
 
 jobs:
   terraform-plan:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout the code
-    - name: Checkout code
-      uses: actions/checkout@v3
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Ensure full history is fetched
 
-    # Step 2: Identify modified directories
-    - name: Identify modified directories
-      id: modified_dirs
-      run: |
-        # List directories with changes in the PR within 'config'
-        git diff --name-only origin/main | awk -F'/' '{
-          if ($1 == "config") print $1"/"$2
-        }' | sort -u > modified_dirs.txt
-        echo "Modified directories:"
-        cat modified_dirs.txt
-        # Save modified directories as a JSON array for use in the workflow
-        echo "directories=$(cat modified_dirs.txt | jq -R -s -c 'split(\"\\n\")[:-1]')" >> $GITHUB_ENV
+      # Step 2: Fetch the 'main' branch to compare changes
+      - name: Fetch main branch
+        run: |
+          git fetch origin main
 
-    # Step 3: Loop through modified directories and run Terraform Plan
-    - name: Run Terraform Plan
-      run: |
-        touch $GITHUB_WORKSPACE/plan_output.txt
-        for dir in $(echo "${{ env.directories }}" | jq -r '.[]'); do
-          echo "Running Terraform Plan in $dir"
-          cd "$dir"
-          terraform init -input=false
-          terraform plan -input=false -out=tfplan
-          echo "Plan for $dir:" >> $GITHUB_WORKSPACE/plan_output.txt
-          terraform show -no-color tfplan >> $GITHUB_WORKSPACE/plan_output.txt
-          cd - > /dev/null
-        done
+      # Step 3: Identify modified directories
+      - name: Identify modified directories
+        id: modified_dirs
+        run: |
+          # List directories with changes in the PR within 'config'
+          git diff --name-only origin/main | awk -F'/' '{
+            if ($1 == "config") print $1"/"$2
+          }' | sort -u > modified_dirs.txt
+          echo "Modified directories:"
+          cat modified_dirs.txt
+          # Save modified directories as a JSON array for use in the workflow
+          echo "directories=$(cat modified_dirs.txt | jq -R -s -c 'split(\"\n\")[:-1]')" >> $GITHUB_ENV
 
-    # Step 4: Comment on the PR
-    - name: Post Plans to PR
-      uses: mshick/add-pr-comment@v2
-      with:
-        repo-token: ${{ secrets.GT_TOKEN }}
-        message: |
-          **Terraform Plan Results**
-          ```plaintext
-          $(cat $GITHUB_WORKSPACE/plan_output.txt)
-          ```
+      # Step 4: Loop through modified directories and run Terraform Plan
+      - name: Run Terraform Plan
+        run: |
+          touch $GITHUB_WORKSPACE/plan_output.txt
+          for dir in $(echo "${{ env.directories }}" | jq -r '.[]'); do
+            echo "Running Terraform Plan in $dir"
+            cd "$dir"
+            terraform init -input=false
+            terraform plan -input=false -out=tfplan
+            echo "Plan for $dir:" >> $GITHUB_WORKSPACE/plan_output.txt
+            terraform show -no-color tfplan >> $GITHUB_WORKSPACE/plan_output.txt
+            cd - > /dev/null
+          done
+
+      # Step 5: Comment on the PR
+      - name: Post Plans to PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          repo-token: ${{ secrets.GT_TOKEN }}
+          message: |
+            **Terraform Plan Results**
+            ```plaintext
+            $(cat $GITHUB_WORKSPACE/plan_output.txt)
+            ```
