@@ -1,4 +1,4 @@
-name: Terraform Plan for Modified Config Directories
+name: Terraform Plan with Python
 
 on:
   pull_request:
@@ -18,33 +18,32 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Ensure full history is fetched
+          fetch-depth: 0
 
-      # Step 2: Fetch the 'main' branch to compare changes
+      # Step 2: Fetch the 'main' branch
       - name: Fetch main branch
-        run: |
-          git fetch origin main
+        run: git fetch origin main
 
-      # Step 3: Identify modified directories
-      - name: Identify modified directories
-        id: modified_dirs
-        run: |
-          # List directories with changes in the PR within 'config'
-          git diff --name-only origin/main | awk -F'/' '{
-            if ($1 == "config") print $1"/"$2
-          }' | sort -u > modified_dirs.txt
-          echo "Modified directories:"
-          cat modified_dirs.txt
-          # Convert the modified directories into a JSON array and set it in the environment
-          directories=$(cat modified_dirs.txt | jq -R -s -c 'split("\n")[:-1]')
-          echo "directories=$directories" >> $GITHUB_ENV
+      # Step 3: Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
-      # Step 4: Loop through modified directories and run Terraform Plan
+      # Step 4: Install dependencies (if needed)
+      - name: Install Python dependencies
+        run: pip install request
+
+      # Step 5: Run Python script to identify modified directories
+      - name: Identify Modified Directories
+        run: python .github/workflows/identify_modified_dirs.py
+
+      # Step 6: Read modified directories and run Terraform Plan
       - name: Run Terraform Plan
         run: |
           touch $GITHUB_WORKSPACE/plan_output.txt
-          # Use a for loop to process each directory, iterate over the items in the JSON array
-          for dir in $(echo "${{ env.directories }}" | jq -r '.[]'); do
+          modified_dirs=$(cat $GITHUB_WORKSPACE/modified_dirs.json | jq -r '.[]')
+          for dir in $modified_dirs; do
             echo "Running Terraform Plan in $dir"
             cd "$dir"
             terraform init -input=false
@@ -54,11 +53,11 @@ jobs:
             cd - > /dev/null
           done
 
-      # Step 5: Comment on the PR
+      # Step 7: Comment on the PR
       - name: Post Plans to PR
         uses: mshick/add-pr-comment@v2
         with:
-          repo-token: ${{ secrets.GT_TOKEN }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
           message: |
             **Terraform Plan Results**
             ```plaintext
