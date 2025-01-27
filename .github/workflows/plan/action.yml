@@ -1,0 +1,32 @@
+name: Terragrunt Plan with Comment
+description: Plan the Terraform changes and post a comment on the PR
+
+inputs:
+  workdir:
+    description: 'Working directory'
+    required: true
+    type: 'string'
+
+runs:
+  using: "composite"
+  steps:
+  - name: Plan Terraform
+    id: plan
+    shell: bash
+    run: |
+      cd ${{ inputs.workdir }}
+      terragrunt plan -out $(pwd)/.planfile
+      # The planfile location must be specific because terragrunt prefers to drop it in the .terragrunt-cache directory
+      echo "planfile=$(pwd)/.planfile" >> $GITHUB_OUTPUT
+
+  - name: Post PR comment
+    uses: borchero/terraform-plan-comment@v2
+    env:
+      TERRAGRUNT_NO_COLOR: 1
+      TERRAGRUNT_FORWARD_TF_STDOUT: 1
+    with:
+      token: ${{ github.token }}
+      working-directory: ${{ inputs.workdir }}
+      planfile: ${{ steps.plan.outputs.planfile }}
+      terraform-cmd: terragrunt
+      header: "Terraform Plan for ${{ inputs.workdir }}"
