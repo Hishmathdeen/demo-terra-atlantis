@@ -18,15 +18,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Step 2: Set up Terraform CLI
-      - name: Install Terraform
-        uses: hashicorp/setup-terraform@v2
-        with:
-          terraform_version: 1.5.7 # Replace with your required version
-
       # Step 3: Identify Modified Directories using Python
       - name: Identify Modified Directories
         run: python .github/workflows/identify_modified_dirs.py
+
+      # Step 2: Set up Terraform CLI
+      - name: Install Terraform
+        uses: hashicorp/setup-terraform@v2
 
       # Step 4: Run Terraform Plan for each modified directory
       - name: Run Terraform Plan
