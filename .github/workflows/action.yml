@@ -66,3 +66,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           planfile: plan_output.txt
+          working-directory: $GITHUB_WORKSPACE
