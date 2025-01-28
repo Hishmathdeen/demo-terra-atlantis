@@ -1,5 +1,5 @@
 
 resource "local_file" "foo" {
-  content  = "foo!"
+  content  = "fooo!"
   filename = "foo"
 }
