@@ -3,7 +3,7 @@ name: Terraform Plan for Modified Directories
 on:
   pull_request:
     branches:
-      - main
+      - main1
     types:
       - opened
       - reopened
