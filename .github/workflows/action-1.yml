@@ -24,5 +24,6 @@ jobs:
       - name: List changed files
         run: |
             for file in ${{ steps.changed-files.outputs.changed_files }}; do
-                echo "$file was changed"
+                dir=$(dirname "$file")  # Extract the directory from the file path
+                echo "$dir was changed"
             done
