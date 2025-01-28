@@ -10,40 +10,19 @@ jobs:
   terragrunt-plan:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Set up Terragrunt
-        run: |
-          curl -sLo terragrunt https://github.com/gruntwork-io/terragrunt/releases/download/v0.44.0/terragrunt_linux_amd64
-          chmod +x terragrunt
-          sudo mv terragrunt /usr/local/bin
-
-      - name: Get list of changed files
-        id: files-changed
-        run: |
-          files_changed=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }})
-          echo "Changed files: $files_changed"
-          echo "files_changed=$files_changed" >> $GITHUB_ENV
-
-      - name: Initialize and Run Terragrunt Plan for Prod (if needed)
-        if: contains(env.files_changed, 'infrastructure/prod/terragrunt.hcl')
-        run: |
-          cd infrastructure/prod
-          terragrunt init
-          terragrunt plan -out=plan.out
-          terragrunt show -json plan.out > plan.json
-          cat plan.json  # Optional: View the plan output in the workflow log
-
-      - name: Post Terragrunt Plan for Prod as PR comment
-        if: contains(env.files_changed, 'infrastructure/prod/terragrunt.hcl')
-        uses: peter-evans/create-or-update-comment@v1
+      - uses: actions/checkout@v3
         with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ### Production Plan:
-            ```json
-            ${{ steps.terragrunt-plan-prod.outputs.plan }}
-            ```
-
-      # Repeat the steps for other environments if needed (e.g., staging) based on file changes
+            fetch-depth: ${{ github.event_name == 'pull_request' && 2 || 0 }}
+      - name: Get changed files
+        id: changed-files
+        run: |
+            if ${{ github.event_name == 'pull_request' }}; then
+                echo "changed_files=$(git diff --name-only -r HEAD^1 HEAD | xargs)" >> $GITHUB_OUTPUT
+            else
+                echo "changed_files=$(git diff --name-only ${{ github.event.before }} ${{ github.event.after }} | xargs)" >> $GITHUB_OUTPUT
+            fi
+      - name: List changed files
+        run: |
+            for file in ${{ steps.changed-files.outputs.changed_files }}; do
+                echo "$file was changed"
+            done
