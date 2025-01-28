@@ -1,4 +1,4 @@
-resource "local_file" "bar" {
-  content  = "bar!"
-  filename = "bar"
+resource "local_file" "barr" {
+  content  = "barr!"
+  filename = "barr"
 }

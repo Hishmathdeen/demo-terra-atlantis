@@ -1,5 +1,5 @@
 
-resource "local_file" "foo" {
-  content  = "foo!"
-  filename = "foo"
+resource "local_file" "fooo" {
+  content  = "fooo!"
+  filename = "fooo"
 }
